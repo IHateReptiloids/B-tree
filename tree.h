@@ -31,6 +31,8 @@ private:
     std::unique_ptr<Node> head;
     size_t sz;
 
+    Node *begin_iter;
+
     void recalc(Node *p) {
         if (p->children.empty()) {
             return;
@@ -39,6 +41,14 @@ private:
         for (auto &i : p->children) {
             i->parent = p;
         }
+    }
+
+    void recalc_iter() {
+        Node *cur = head.get();
+        while (!cur->children.empty()) {
+            cur = cur->children[0].get();
+        }
+        begin_iter = cur;
     }
 
     // эта функция разделяет вершину на 
@@ -133,7 +143,9 @@ private:
 public:
     Set()
         : head(new Node)
-        , sz(0) {}
+        , sz(0) {
+        recalc_iter();
+    }
 
     template<typename Iter>
     Set(Iter begin, Iter end)
@@ -158,6 +170,7 @@ public:
         Set tmp(set);
         head.reset(tmp.head.release());
         sz = tmp.sz;
+        recalc_iter();
         return *this;
     }
 
@@ -266,11 +279,7 @@ public:
     };
 
     iterator begin() const {
-        Node *cur = head.get();
-        while (!cur->children.empty()) {
-            cur = cur->children[0].get();
-        }
-        return iterator(cur);
+        return iterator(begin_iter);
     }
 
     iterator end() const {
@@ -303,6 +312,7 @@ public:
             sz++;
             head->children.emplace_back(new Node(elem, head.get()));
             recalc(head.get());
+            recalc_iter();
             return;
         }
         if (find(elem) != end()) {
@@ -332,6 +342,7 @@ public:
             pos = pos->parent;
         }
         split(cur);
+        recalc_iter();
     }
 
     void erase(T elem) {
@@ -355,6 +366,7 @@ public:
         if (sz != 0) {
             merge(cur);
         }
+        recalc_iter();
     }
 
     iterator lower_bound(T elem) const {
@@ -382,4 +394,3 @@ public:
         return ++iter;
     }
 };
-
