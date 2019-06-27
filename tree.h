@@ -33,8 +33,7 @@ private:
 
     Node* begin_iter;
 
-    // пересчитываю максимум в поддереве и ставлю ссылки на
-    // родителя у детей
+    // Пересчёт максимума в поддереве и создание ссылок у детей на родителя. 
     void recalc(Node* p) {
         if (p->children.empty()) {
             return;
@@ -53,11 +52,10 @@ private:
         begin_iter = cur;
     }
 
-    // эта функция разделяет вершину на 
-    // две, если у нее слишком много(больше 2В) детей
+    // Разделение вершины на две, если у нее слишком много детей.
     void split(Node* cur) {
         while (cur->children.size() == 2 * B) {
-            // если нахожусь в корне, то создаю новый корень
+            // Если у корня много детей, создается новый корень.
             if (cur->parent == nullptr) {
                 std::unique_ptr<Node> new_root(new Node);
                 new_root->mx = head->mx;
@@ -65,8 +63,7 @@ private:
                 head = std::move(new_root);
                 cur->parent = head.get();
             }
-            // иду в родителя, потом создаю у него нового ребенка
-            // и переподвешиваю туда половину детей текущего узла
+            // Создание ребенка у родителя, переподвешивание к нему половины детей текущего узла.
             auto i = cur->parent->children.begin();
             while (i->get() != cur) {
                 i++;
@@ -75,11 +72,11 @@ private:
             int ind = i - cur->parent->children.begin();
             cur->parent->children.emplace(i, new Node);
             Node* to = cur->parent->children[ind].get();
-            // подвешиваю детей
+            // Переподвешивание детей.
             for (int j = B; j < 2 * B; j++) {
                 to->children.emplace_back(std::move(cur->children[j]));
             }
-            // удаляю детей из старого места
+            // Удаление детей из старого места.
             for (int j = 0; j < B; j++) {
                 cur->children.pop_back();
             }
@@ -90,12 +87,10 @@ private:
         }
     }
 
-    // эта функция "ворует" детей у соседа, если у текущей вершины
-    // слишком мало детей
+    // Переподвешивание детей к вершине, у которой слишком мало детей.
     void merge(Node* cur) {
         while (cur->children.size() < B) {
-            // если я в корне и у него один ребенок, то я его удаляю,
-            // чтобы не образовывались бамбуки
+            // Если у корня один ребенок, и он не лист, то корень удаляется, чтобы не образовывались бамбуки.
             if (cur->parent == nullptr) {
                 if (cur->children.size() == 1 && !cur->children[0]->children.empty()) {
                     head = std::move(head->children[0]);
@@ -109,12 +104,11 @@ private:
                 i++;
             }
             Node* neigh;
-            // сначала пытаюсь украсть ребенка у левого соседа, если
-            // вершина и так самый левый ребенок, то у правого,
-            // если не получается, то тогда сливаю вершины в одну
+            // Если вершина не является самым левым ребенком, то взаимодействуем с левым братом.
+            // В противном случае с правым братом.
             if (i != 0) {
                 neigh = cur->parent->children[i - 1].get();
-                // пытаюсь своровать ребенка
+                // Попытка "своровать" ребенка.
                 if (neigh->children.size() > B) {
                     cur->children.insert(cur->children.begin(), std::move(neigh->children.back()));
                     neigh->children.pop_back();
@@ -122,7 +116,7 @@ private:
                     recalc(cur);
                     return;
                 }
-                // мержу вершины
+                // Объединение вершин.
                 for (int j = 0; j < cur->children.size(); j++) {
                     neigh->children.push_back(std::move(cur->children[j]));
                 }
@@ -130,8 +124,8 @@ private:
                 cur = cur->parent;
                 cur->children.erase(cur->children.begin() + i);
             } else {
-                // второй случай симметричен
                 neigh = cur->parent->children[i + 1].get();
+                // Попытка "своровать" ребенка.
                 if (neigh->children.size() > B) {
                     cur->children.push_back(std::move(neigh->children[0]));
                     neigh->children.erase(neigh->children.begin());
@@ -139,6 +133,7 @@ private:
                     recalc(cur);
                     return;
                 }
+                // Объединение вершин.
                 for (int j = 0; j < neigh->children.size(); j++) {
                     cur->children.push_back(std::move(neigh->children[j]));
                 }
@@ -229,12 +224,11 @@ public:
         iterator operator++() {
             Node* cur = ptr->parent;
             Node* prev = ptr;
-            // поднимаюсь вверх, пока ребенок является самым правым у родителя
+            // Подъём вверх, пока ребенок является самым правым у родителя.
             while (cur != nullptr && cur->children.back().get() == prev) {
                 prev = cur;
                 cur = cur->parent;
             }
-            // если пришел в корень, то я стартовал из максимального элемента
             if (cur == nullptr) {
                 ptr = prev;
                 return *this;
@@ -243,7 +237,7 @@ public:
             while (cur->children[i].get() != prev) {
                 i++;
             }
-            // иду вниз по самым левым детям до упора
+            // Спуск влево до упора.
             cur = cur->children[i + 1].get();
             while (!cur->children.empty()) {
                 cur = cur->children[0].get();
@@ -259,8 +253,7 @@ public:
         }
 
         iterator operator--() {
-            // отдельно рассматриваю случай, когда iter == end(), 
-            // для этого спускаюсь вправо до максимального элемента
+            // В случае если iter == end(), спуск вправо до максимального элемента.
             if (!ptr->children.empty()) {
                 while (!ptr->children.empty()) {
                     ptr = ptr->children.back().get();
@@ -269,7 +262,7 @@ public:
             }
             Node* cur = ptr->parent;
             Node* prev = ptr;
-            // поднимаюсь вверх, пока ребенок является самым левым у родителя
+            // Подъём вверх, пока ребенок является самым левым у родителя.
             while (cur->children[0].get() == prev) {
                 prev = cur;
                 cur = cur->parent;
@@ -278,7 +271,7 @@ public:
             while (cur->children[i].get() != prev) {
                 i++;
             }
-            // иду вправо
+            // Спуск вправо до упора.
             cur = cur->children[i - 1].get();
             while (!cur->children.empty()) {
                 cur = cur->children.back().get();
@@ -307,7 +300,7 @@ public:
             return end();
         }
         Node* cur = head.get();
-        // спуск по дереву
+        // Спуск по дереву.
         while (!cur->children.empty()) {
             int i = 0;
             while (i < cur->children.size() && *(cur->children[i]->mx) < elem) {
@@ -318,7 +311,6 @@ public:
             }
             cur = cur->children[i].get();
         }
-        // проверяю, что нашел то, что нужно
         if (!(*(cur->data) < elem) && !(elem < *(cur->data))) {
             return iterator(cur);
         }
@@ -337,8 +329,8 @@ public:
             return;
         }
         sz++;
+        // Спуск по дереву для поиска позиции для вставки нового элемента.
         Node* cur = head.get();
-        // сначала ищу куда вставить элемент
         while (!cur->children.empty()) {
             int i = 0;
             while (*(cur->children[i]->mx) < elem && i < cur->children.size() - 1) {
@@ -352,8 +344,7 @@ public:
             i++;
         }
         cur->children.emplace(i, new Node(elem, cur));
-        // потом поднимаюсь по предкам, чтобы обновить значение
-        // максимума в поддеревьях
+        // Подъём по предкам, чтобы обновить значение максимума в поддеревьях.
         Node* pos = cur;
         while (pos != nullptr) {
             recalc(pos);
@@ -369,6 +360,7 @@ public:
             return;
         }
         sz--;
+        // Удаление элемента.
         Node* cur = iter.ptr->parent;
         auto i = cur->children.begin();
         while (i->get() != iter.ptr) {
@@ -376,7 +368,7 @@ public:
         }
         cur->children.erase(i);
         Node* pos = cur;
-        // обновляю максимумы на пути до корня
+        // Обновление максимумов на пути до корня.
         while (pos != nullptr) {
             recalc(pos);
             pos = pos->parent;
@@ -395,7 +387,7 @@ public:
             return begin();
         }
         Node* cur = head.get();
-        // спуск по дереву
+        // Спуск по дереву.
         while (!cur->children.empty()) {
             int i = 0;
             while (i < cur->children.size() && *(cur->children[i]->mx) < elem) {
