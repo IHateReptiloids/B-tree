@@ -10,17 +10,17 @@ template<typename T, unsigned int B = 2>
 class Set {
 private:
     struct Node {
-        Node *parent;
+        Node* parent;
         std::vector<std::unique_ptr<Node>> children;
         std::unique_ptr<const T> data;
-        const T *mx;
+        const T* mx;
 
         Node()
             : parent(nullptr)
             , data(nullptr)
             , mx(nullptr) {}
 
-        Node(T elem, Node *par)
+        Node(T elem, Node* par)
             : parent(par)
             , data(new T(elem)) {
             mx = data.get();
@@ -31,9 +31,11 @@ private:
     std::unique_ptr<Node> head;
     size_t sz;
 
-    Node *begin_iter;
+    Node* begin_iter;
 
-    void recalc(Node *p) {
+    // пересчитываю максимум в поддереве и ставлю ссылки на
+    // родителя у детей
+    void recalc(Node* p) {
         if (p->children.empty()) {
             return;
         }
@@ -44,7 +46,7 @@ private:
     }
 
     void recalc_iter() {
-        Node *cur = head.get();
+        Node* cur = head.get();
         while (!cur->children.empty()) {
             cur = cur->children[0].get();
         }
@@ -53,7 +55,7 @@ private:
 
     // эта функция разделяет вершину на 
     // две, если у нее слишком много(больше 2В) детей
-    void split(Node *cur) {
+    void split(Node* cur) {
         while (cur->children.size() == 2 * B) {
             // если нахожусь в корне, то создаю новый корень
             if (cur->parent == nullptr) {
@@ -72,10 +74,12 @@ private:
             i++;
             int ind = i - cur->parent->children.begin();
             cur->parent->children.emplace(i, new Node);
-            Node *to = cur->parent->children[ind].get();
+            Node* to = cur->parent->children[ind].get();
+            // подвешиваю детей
             for (int j = B; j < 2 * B; j++) {
                 to->children.emplace_back(std::move(cur->children[j]));
             }
+            // удаляю детей из старого места
             for (int j = 0; j < B; j++) {
                 cur->children.pop_back();
             }
@@ -88,8 +92,10 @@ private:
 
     // эта функция "ворует" детей у соседа, если у текущей вершины
     // слишком мало детей
-    void merge(Node *cur) {
+    void merge(Node* cur) {
         while (cur->children.size() < B) {
+            // если я в корне и у него один ребенок, то я его удаляю,
+            // чтобы не образовывались бамбуки
             if (cur->parent == nullptr) {
                 if (cur->children.size() == 1 && !cur->children[0]->children.empty()) {
                     head = std::move(head->children[0]);
@@ -102,12 +108,13 @@ private:
             while (cur->parent->children[i].get() != cur) {
                 i++;
             }
-            Node *neigh;
+            Node* neigh;
             // сначала пытаюсь украсть ребенка у левого соседа, если
             // вершина и так самый левый ребенок, то у правого,
             // если не получается, то тогда сливаю вершины в одну
             if (i != 0) {
                 neigh = cur->parent->children[i - 1].get();
+                // пытаюсь своровать ребенка
                 if (neigh->children.size() > B) {
                     cur->children.insert(cur->children.begin(), std::move(neigh->children.back()));
                     neigh->children.pop_back();
@@ -115,6 +122,7 @@ private:
                     recalc(cur);
                     return;
                 }
+                // мержу вершины
                 for (int j = 0; j < cur->children.size(); j++) {
                     neigh->children.push_back(std::move(cur->children[j]));
                 }
@@ -122,6 +130,7 @@ private:
                 cur = cur->parent;
                 cur->children.erase(cur->children.begin() + i);
             } else {
+                // второй случай симметричен
                 neigh = cur->parent->children[i + 1].get();
                 if (neigh->children.size() > B) {
                     cur->children.push_back(std::move(neigh->children[0]));
@@ -186,9 +195,9 @@ public:
         friend Set;
 
     private:
-        Node *ptr;
+        Node* ptr;
 
-        iterator(Node *p) : ptr(p) {}
+        iterator(Node* p) : ptr(p) {}
 
     public:
         iterator() {}
@@ -218,12 +227,14 @@ public:
         }
 
         iterator operator++() {
-            Node *cur = ptr->parent;
-            Node *prev = ptr;
+            Node* cur = ptr->parent;
+            Node* prev = ptr;
+            // поднимаюсь вверх, пока ребенок является самым правым у родителя
             while (cur != nullptr && cur->children.back().get() == prev) {
                 prev = cur;
                 cur = cur->parent;
             }
+            // если пришел в корень, то я стартовал из максимального элемента
             if (cur == nullptr) {
                 ptr = prev;
                 return *this;
@@ -232,6 +243,7 @@ public:
             while (cur->children[i].get() != prev) {
                 i++;
             }
+            // иду вниз по самым левым детям до упора
             cur = cur->children[i + 1].get();
             while (!cur->children.empty()) {
                 cur = cur->children[0].get();
@@ -247,14 +259,17 @@ public:
         }
 
         iterator operator--() {
+            // отдельно рассматриваю случай, когда iter == end(), 
+            // для этого спускаюсь вправо до максимального элемента
             if (!ptr->children.empty()) {
                 while (!ptr->children.empty()) {
                     ptr = ptr->children.back().get();
                 }
                 return *this;
             }
-            Node *cur = ptr->parent;
-            Node *prev = ptr;
+            Node* cur = ptr->parent;
+            Node* prev = ptr;
+            // поднимаюсь вверх, пока ребенок является самым левым у родителя
             while (cur->children[0].get() == prev) {
                 prev = cur;
                 cur = cur->parent;
@@ -263,6 +278,7 @@ public:
             while (cur->children[i].get() != prev) {
                 i++;
             }
+            // иду вправо
             cur = cur->children[i - 1].get();
             while (!cur->children.empty()) {
                 cur = cur->children.back().get();
@@ -290,7 +306,8 @@ public:
         if (empty()) {
             return end();
         }
-        Node *cur = head.get();
+        Node* cur = head.get();
+        // спуск по дереву
         while (!cur->children.empty()) {
             int i = 0;
             while (i < cur->children.size() && *(cur->children[i]->mx) < elem) {
@@ -301,6 +318,7 @@ public:
             }
             cur = cur->children[i].get();
         }
+        // проверяю, что нашел то, что нужно
         if (!(*(cur->data) < elem) && !(elem < *(cur->data))) {
             return iterator(cur);
         }
@@ -319,7 +337,7 @@ public:
             return;
         }
         sz++;
-        Node *cur = head.get();
+        Node* cur = head.get();
         // сначала ищу куда вставить элемент
         while (!cur->children.empty()) {
             int i = 0;
@@ -336,7 +354,7 @@ public:
         cur->children.emplace(i, new Node(elem, cur));
         // потом поднимаюсь по предкам, чтобы обновить значение
         // максимума в поддеревьях
-        Node *pos = cur;
+        Node* pos = cur;
         while (pos != nullptr) {
             recalc(pos);
             pos = pos->parent;
@@ -351,13 +369,13 @@ public:
             return;
         }
         sz--;
-        Node *cur = iter.ptr->parent;
+        Node* cur = iter.ptr->parent;
         auto i = cur->children.begin();
         while (i->get() != iter.ptr) {
             i++;
         }
         cur->children.erase(i);
-        Node *pos = cur;
+        Node* pos = cur;
         // обновляю максимумы на пути до корня
         while (pos != nullptr) {
             recalc(pos);
@@ -376,7 +394,8 @@ public:
         if (elem < *begin()) {
             return begin();
         }
-        Node *cur = head.get();
+        Node* cur = head.get();
+        // спуск по дереву
         while (!cur->children.empty()) {
             int i = 0;
             while (i < cur->children.size() && *(cur->children[i]->mx) < elem) {
@@ -387,10 +406,6 @@ public:
             }
             cur = cur->children[i].get();
         }
-        iterator iter(cur);
-        if ((!(*iter < elem) && !(elem < *iter)) || elem < *iter) {
-            return iter;
-        }
-        return ++iter;
+        return iterator(cur);
     }
 };
