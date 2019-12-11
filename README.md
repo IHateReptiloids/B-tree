@@ -1,2 +1,2 @@
 # B-tree
-my b-tree implementation
+My B-tree implementation
